@@ -21,7 +21,6 @@
 "    default block.
 setlocal foldmethod=expr
 setlocal foldexpr=GetPhpFold(v:lnum)
-
 if !exists('b:phpfold_use')
     let b:phpfold_use = 1
 endif
@@ -73,10 +72,13 @@ function! GetPhpFold(lnum)
     endif
 
     " handle class methods and independent functions
-    if line =~? '\v\s*(abstract\s+|public\s+|private\s+|static\s+|private\s+)*function\s+(\k|\()' && line !~? ';$'
+    if line =~? '\v\s*(abstract\s+|public\s+|protected\s+|static\s+|private\s+)*function\s+(\k|\()' && line !~? ';$'
         if b:phpfold_doc_with_funcs
+            " fold is set by indentation of the following line, + 1
             return IndentLevel(a:lnum)+1
         else
+            " New fold begins at the level of the indent of the following
+            " line.
             return '>'.(IndentLevel(a:lnum)+1)
         endif
     endif
@@ -92,9 +94,14 @@ function! GetPhpFold(lnum)
         let nextCurly = FindNextDelimiter(a:lnum, '{')
         return '>' . IndentLevel(nextnonblank(nextCurly + 1))
     elseif b:phpfold_curlies && line =~? '{' && line !~? '\v^\s*\*'
+        " There's a { but the line does not start with a * - presumably rule
+        " out { inside /* multiline comments */.
         " The fold level of the curly is determined by the next non-blank line
         return IndentLevel(a:lnum) + 1
-    elseif line =~? '\v^\s*\*@!\}(\s*(else|catch|finally))@!'
+    elseif line =~? '\v^\s*\}$'
+      " A closing curly on a line on its own is the end of a function, method or class
+        return '<' . (IndentLevel(a:lnum) + 1)
+    elseif b:phpfold_curlies && line =~? '\v^\s*\*@!\}(\s*(else|catch|finally))@!'
         " The fold level the closing curly closes is determined by the previous non-blank line
         " But only if not followed by an else, catch, or finally
         return '<' . (IndentLevel(a:lnum)+1)
