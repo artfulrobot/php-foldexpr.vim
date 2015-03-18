@@ -152,7 +152,14 @@ function! GetPhpFold(lnum)
           else
               return 'a1'
           endif
-      elseif line =~? '\v^\s*([\(\[].*)@!(\)|\])'
+      " original: elseif line =~? '\v^\s*([\(\[].*)@!(\)|\])'
+      " I think the ([\(\[].*)@! is not needed because
+      " space followed by ] or ) means you can't have [ or ( anyway.
+      "
+      " However, we do need to test that a closing bracket is not followed
+      " by an opening curly, as this is the case when the bracket closes the
+      " argument list and the curly opens the function.
+      elseif line =~? '\v^\s*(\)|\])(\s*{)@!'
           return 's1'
       endif
     endif
