@@ -153,8 +153,12 @@ function! GetPhpFold(lnum)
               return 'a1'
           endif
 
-      elseif line =~? '\v^[^\(]*\)(\s*\{\s*$)@!'
-          " line has a closing ) before an opening one, and is not ) {
+      elseif line =~? '\v^[^\(]*\)(\s*\{\s*$)@!' || line =~? '\v^[^\[]*\]'
+          " A line has a closing ), and this is NOT preceeded by an opening (
+          " and it's not followed by an opening curly - which is probably
+          " the construct for the end of an argument list and start of
+          " function body.
+          " or line has a closing ] and this is not preceeded by an opening [
           return 's1'
       endif
     endif

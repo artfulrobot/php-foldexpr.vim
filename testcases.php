@@ -147,7 +147,20 @@ $a = Array(
 )
 ;
 
-$this_should_not_fold = [];
 
+// Case a1
+// WORKS: curlies=1, brackets=1
+//
+// FAILS: curlies=0, brackets=0
+// FAILS: curlies=1, brackets=0
+// FAILS: curlies=0, brackets=1
+foobar(
+   function ($arg) {
+      // closure things!
+   },
+   'arg2'
+);
+
+$this_should_not_fold = [];
 
 
