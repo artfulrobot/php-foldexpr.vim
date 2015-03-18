@@ -10,7 +10,6 @@
 "           b:phpfold_group_args = 1     - Group function arguments split across multiple
 "                                          lines into their own fold.
 "           b:phpfold_group_case = 1     - Fold case and default blocks inside switches.
-"           b:phpfold_brackets = 1       - Fold multi-line square and normal brackets. () []
 "           b:phpfold_curlies = 1        - Fold within {}.
 "           b:phpfold_heredocs = 1       - Fold HEREDOCs and NOWDOCs.
 "           b:phpfold_docblocks = 1      - Fold DocBlocks.
@@ -23,9 +22,6 @@ setlocal foldmethod=expr
 setlocal foldexpr=GetPhpFold(v:lnum)
 if !exists('b:phpfold_use')
     let b:phpfold_use = 1
-endif
-if !exists('b:phpfold_brackets')
-    let b:phpfold_brackets = 1
 endif
 if !exists('b:phpfold_curlies')
     let b:phpfold_curlies = 1
@@ -75,6 +71,7 @@ function! GetPhpFold(lnum)
     if line =~? '\v\s*(abstract\s+|public\s+|protected\s+|static\s+|private\s+)*function\s+(\k|\()' && line !~? ';$'
         if b:phpfold_doc_with_funcs
             " fold is set by indentation of the following line, + 1
+            echom a:lnum . " function fold at " . (IndentLevel(a:lnum)+1) . ": " . getline(a:lnum)
             return IndentLevel(a:lnum)+1
         else
             " New fold begins at the level of the indent of the following
@@ -98,8 +95,9 @@ function! GetPhpFold(lnum)
         " out { inside /* multiline comments */.
         " The fold level of the curly is determined by the next non-blank line
         return IndentLevel(a:lnum) + 1
-    elseif line =~? '\v^\s*\}$'
-      " A closing curly on a line on its own is the end of a function, method or class
+    elseif line =~? '\v^\s*\}'
+      " A closing curly at the start of a line is the end of a closure, end of
+      " a function.
         return '<' . (IndentLevel(a:lnum) + 1)
     elseif b:phpfold_curlies && line =~? '\v^\s*\*@!\}(\s*(else|catch|finally))@!'
         " The fold level the closing curly closes is determined by the previous non-blank line
@@ -144,23 +142,23 @@ function! GetPhpFold(lnum)
     endif
 
     " If the line has an open ( ) or [ ] pair, it probably starts a fold
-    if b:phpfold_brackets
-      if line =~? '\v(\(|\[)[^\)\]]*$'
-          if b:phpfold_group_iftry && line =~? '\v}\s*(elseif|catch)'
-              " But don't start a fold if we're grouping if/elseif/else and try/catch
-              return IndentLevel(a:lnum)+1
-          else
-              return 'a1'
-          endif
+    if line =~? '\v(\(|\[)[^\)\]]*$'
+        if b:phpfold_group_iftry && line =~? '\v}\s*(elseif|catch)'
+            " But don't start a fold if we're grouping if/elseif/else and try/catch
+            return IndentLevel(a:lnum)+1
+        else
+            echom a:lnum . " opening (: " . getline(a:lnum)
+            return 'a1'
+        endif
 
-      elseif line =~? '\v^[^\(]*\)(\s*\{\s*$)@!' || line =~? '\v^[^\[]*\]'
-          " A line has a closing ), and this is NOT preceeded by an opening (
-          " and it's not followed by an opening curly - which is probably
-          " the construct for the end of an argument list and start of
-          " function body.
-          " or line has a closing ] and this is not preceeded by an opening [
-          return 's1'
-      endif
+    elseif line =~? '\v^[^\(]*\)(\s*\{\s*$)@!' || line =~? '\v^[^\[]*\]'
+        " A line has a closing ), and this is NOT preceeded by an opening (
+        " and it's not followed by an opening curly - which is probably
+        " the construct for the end of an argument list and start of
+        " function body.
+        " or line has a closing ] and this is not preceeded by an opening [
+        echom a:lnum . " closing ): " . getline(a:lnum)
+        return 's1'
     endif
 
     " Fold switch case and default blocks together
