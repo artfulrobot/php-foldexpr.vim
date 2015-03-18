@@ -120,20 +120,32 @@ catch (Exception $e) {
   print "foo";
 }
 
-// The following case works with curlies on or off, but only when brackets is off.
 function foo3(
   $arg1,
   $arg2
 ) {
    // do things!
 }
-// The following do not work
+$a = Array(
+    1,
+    2,
+    3,
+    4
+  )
+;
+$a = Array(
+  1,
+  2,
+  3,
+  4,) ;
 
 $a = Array(
   1,
   2,
   3,
-  4, );
+  4
+)
+;
 
 $this_should_not_fold = [];
 

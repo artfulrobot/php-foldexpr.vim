@@ -145,21 +145,16 @@ function! GetPhpFold(lnum)
 
     " If the line has an open ( ) or [ ] pair, it probably starts a fold
     if b:phpfold_brackets
-      if line =~? '\v(\(|\[)[^\)\]]*$' 
+      if line =~? '\v(\(|\[)[^\)\]]*$'
           if b:phpfold_group_iftry && line =~? '\v}\s*(elseif|catch)'
               " But don't start a fold if we're grouping if/elseif/else and try/catch
               return IndentLevel(a:lnum)+1
           else
               return 'a1'
           endif
-      " original: elseif line =~? '\v^\s*([\(\[].*)@!(\)|\])'
-      " I think the ([\(\[].*)@! is not needed because
-      " space followed by ] or ) means you can't have [ or ( anyway.
-      "
-      " However, we do need to test that a closing bracket is not followed
-      " by an opening curly, as this is the case when the bracket closes the
-      " argument list and the curly opens the function.
-      elseif line =~? '\v^\s*(\)|\])(\s*{)@!'
+
+      elseif line =~? '\v^[^\(]*\)(\s*\{\s*$)@!'
+          " line has a closing ) before an opening one, and is not ) {
           return 's1'
       endif
     endif
