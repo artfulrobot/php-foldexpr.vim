@@ -44,6 +44,10 @@ if b:phpfold_doc_with_funcs
     let b:phpfold_docblocks = 1
 endif
 
+" work store
+let b:phpfold_closefold = []
+let b:phpfold_closefold_after = []
+
 function! GetPhpFold(lnum)
     let line = getline(a:lnum)
 
@@ -52,6 +56,34 @@ function! GetPhpFold(lnum)
     if line =~? '\v^\s*$'
         return '='
     endif
+    let l:il = IndentLevel(a:lnum)
+
+    echom 'line ' . a:lnum . ' Indent:' . l:il . ' closes:' . join(b:phpfold_closefold, ',') . ' closes_a:' . join(b:phpfold_closefold_after, ',') . ' string: ' . line
+    " If this line is at a level of indentation we should look out for, close
+    " the fold.
+    if len(b:phpfold_closefold)>0
+      " We are looking out for things to close
+
+      if (a:lnum > b:phpfold_closefold_after[-1]) && (b:phpfold_closefold[-1] == l:il)
+        echom 'line ' . a:lnum . ' ENDS: ' . line
+        let b:phpfold_closefold=b:phpfold_closefold[0:-2]
+        let b:phpfold_closefold_after=b:phpfold_closefold_after[0:-2]
+        return 's1'
+      endif
+    endif
+
+    " Does this line start a fold?
+    if line =~? '\v^\s*(private\s+|public\s+|protected\s+|static\s+)*(class|function)(\s|\()'
+      echom 'line ' . a:lnum . ' STARTS: ' . line
+      " Store the current indent as an important one to look out for
+      let b:phpfold_closefold=add(b:phpfold_closefold, l:il)
+      " But we must only look out for it after the opening curly
+      let nextCurly = FindNextDelimiter(a:lnum, '{')
+      let b:phpfold_closefold_after=add(b:phpfold_closefold_after, nextCurly)
+      return 'a1'
+    endif
+
+    return '='
 
     if b:phpfold_use
         " Fold blocks of 'use' statements that have no indentation.
