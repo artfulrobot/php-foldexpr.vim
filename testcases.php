@@ -75,6 +75,12 @@ class FooDrupal {
         // This is Drupal style
         return;
     }
+    /**
+     * another method
+     */
+    public function foobar() {
+        // will this fold?
+    }
 }
 // -----------------------------------------------------------------
 

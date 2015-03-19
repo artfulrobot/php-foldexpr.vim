@@ -48,38 +48,50 @@ endif
 let b:phpfold_closefold = []
 let b:phpfold_closefold_after = []
 let b:phpfold_last = 0
+let b:phpfold_cache = []
+let b:phpfold_last = 0
+let b:phpfold_debug = 0
 
 function! GetPhpFold(lnum)
     let line = getline(a:lnum)
-    if line == 1
+    if a:lnum == 1
       let b:phpfold_closefold = []
+      let b:phpfold_cache = []
       let b:phpfold_closefold_after = []
       let b:phpfold_last = 0
+    endif
+
+    " If we have a full fold cache, use that.
+    if len(b:phpfold_cache) == line('$')
+      call PhpFoldDebug( "Used cache for line " . a:lnum)
+      return b:phpfold_cache[a:lnum-1]
     endif
 
     " Empty lines get the same fold level as the line before them.
     " e.g. blank lines between class methods continue the class-level fold.
     if line =~? '\v^\s*$'
-        return b:phpfold_last
+      let b:phpfold_cache = add(b:phpfold_cache, b:phpfold_last)
+      return b:phpfold_last
     endif
     let l:il = IndentLevel(a:lnum)
 
-    echom 'line ' . a:lnum . ' Indent:' . l:il . ' closes:' . join(b:phpfold_closefold, ',') . ' closes_a:' . join(b:phpfold_closefold_after, ',') . ' string: ' . line
+    call PhpFoldDebug('line ' . a:lnum . ' Indent:' . l:il . ' closes:' . join(b:phpfold_closefold, ',') . ' closes_a:' . join(b:phpfold_closefold_after, ',') . ' string: ' . line)
     " If this line is at a level of indentation we should look out for, close
     " the fold.
     if len(b:phpfold_closefold)>0
       " We are looking out for things to close
 
       if (a:lnum > b:phpfold_closefold_after[-1]) && (b:phpfold_closefold[-1] == l:il)
-        echom 'line ' . a:lnum . ' ENDS: ' . line
+        call PhpFoldDebug('line ' . a:lnum . ' ENDS: ' . line)
         let b:phpfold_closefold=b:phpfold_closefold[0:-2]
         let b:phpfold_closefold_after=b:phpfold_closefold_after[0:-2]
         let l:thisfold = '<' .b:phpfold_last
         if b:phpfold_last == 0
-          echom 'hmmm. already at 0 but closing a fold?!'
+          call PhpFoldDebug('hmmm. already at 0 but closing a fold?!')
         else
           let b:phpfold_last -= 1
         endif
+        let b:phpfold_cache = add(b:phpfold_cache, l:thisfold)
         return l:thisfold
       endif
     endif
@@ -88,26 +100,29 @@ function! GetPhpFold(lnum)
 
     " Does this line start a fold?
     if line =~? '\v^\s*(private\s+|public\s+|protected\s+|static\s+)*(class|function)(\s|\()'
-      echom 'line ' . a:lnum . ' STARTS: ' . line
+      call PhpFoldDebug('line ' . a:lnum . ' STARTS: ' . line)
       " Store the current indent as an important one to look out for
       let b:phpfold_closefold=add(b:phpfold_closefold, l:il)
       " But we must only look out for it after the opening curly
       let nextCurly = FindNextDelimiter(a:lnum, '{')
       let b:phpfold_closefold_after=add(b:phpfold_closefold_after, nextCurly)
       let b:phpfold_last += 1
+      let b:phpfold_cache = add(b:phpfold_cache, '>' . b:phpfold_last)
       return '>' . b:phpfold_last
     elseif b:phpfold_docblocks && line =~? '\v^\s*/\*\*' && line !~? '\*/'
       " Cause indented multi-line comments (/* */) to be folded.
-      echom 'line ' . a:lnum . ' STARTS: ' . line
+      call PhpFoldDebug('line ' . a:lnum . ' STARTS: ' . line)
       " Store the current indent as an important one to look out for
       let b:phpfold_closefold=add(b:phpfold_closefold, l:il)
       " But we must only look out for it at the line with the closing */
       let endComment = FindNextDelimiter(a:lnum, '*/') - 1
       let b:phpfold_closefold_after=add(b:phpfold_closefold_after, endComment)
       let b:phpfold_last += 1
+      let b:phpfold_cache = add(b:phpfold_cache, '>' . b:phpfold_last)
       return '>' . b:phpfold_last
     endif
 
+    let b:phpfold_cache = add(b:phpfold_cache, b:phpfold_last)
     return b:phpfold_last
     " -------------------------------------------------------------
 
@@ -237,6 +252,12 @@ function! GetPhpFold(lnum)
    endif
 
     return '='
+endfunction
+
+function! PhpFoldDebug(a)
+  if b:phpfold_debug
+    echom l:a
+  endif
 endfunction
 
 function! IndentLevel(lnum)
