@@ -31,3 +31,51 @@ function foo($a, $b=null) {
  * File docblock
  */
 // -----------------------------------------------------------------
+// Test classPsr2
+/**
+ * Class to do X, Y, Z
+ */
+class FooPsr2
+{
+    /**
+     * Some method
+     */
+    public function foo(Array $a)
+    {
+        // This is PSR-2 style
+        return;
+    }
+    /**
+     * Some method
+     */
+    protected function fooProtected(Array $a)
+    {
+        // This is PSR-2 style
+        return;
+    }
+    /**
+     * Some method
+     */
+    private static function fooPrivate(Array $a)
+    {
+        // This is PSR-2 style
+        return;
+    }
+}
+// -----------------------------------------------------------------
+// Test classDrupal
+/**
+ * Class to do X, Y, Z
+ */
+class FooDrupal {
+    /**
+     * Some method
+     */
+    public function foo(Array $a) {
+        // This is Drupal style
+        return;
+    }
+}
+// -----------------------------------------------------------------
+
+
