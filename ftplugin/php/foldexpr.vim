@@ -47,14 +47,20 @@ endif
 " work store
 let b:phpfold_closefold = []
 let b:phpfold_closefold_after = []
+let b:phpfold_last = 0
 
 function! GetPhpFold(lnum)
     let line = getline(a:lnum)
+    if line == 1
+      let b:phpfold_closefold = []
+      let b:phpfold_closefold_after = []
+      let b:phpfold_last = 0
+    endif
 
     " Empty lines get the same fold level as the line before them.
     " e.g. blank lines between class methods continue the class-level fold.
     if line =~? '\v^\s*$'
-        return '='
+        return b:phpfold_last
     endif
     let l:il = IndentLevel(a:lnum)
 
@@ -68,9 +74,17 @@ function! GetPhpFold(lnum)
         echom 'line ' . a:lnum . ' ENDS: ' . line
         let b:phpfold_closefold=b:phpfold_closefold[0:-2]
         let b:phpfold_closefold_after=b:phpfold_closefold_after[0:-2]
-        return 's1'
+        let l:thisfold = '<' .b:phpfold_last
+        if b:phpfold_last == 0
+          echom 'hmmm. already at 0 but closing a fold?!'
+        else
+          let b:phpfold_last -= 1
+        endif
+        return l:thisfold
       endif
     endif
+
+    " @todo: support folding docblock as part of the code.
 
     " Does this line start a fold?
     if line =~? '\v^\s*(private\s+|public\s+|protected\s+|static\s+)*(class|function)(\s|\()'
@@ -80,10 +94,37 @@ function! GetPhpFold(lnum)
       " But we must only look out for it after the opening curly
       let nextCurly = FindNextDelimiter(a:lnum, '{')
       let b:phpfold_closefold_after=add(b:phpfold_closefold_after, nextCurly)
-      return 'a1'
+      let b:phpfold_last += 1
+      return '>' . b:phpfold_last
+    elseif b:phpfold_docblocks && line =~? '\v^\s*/\*\*' && line !~? '\*/'
+      " Cause indented multi-line comments (/* */) to be folded.
+      echom 'line ' . a:lnum . ' STARTS: ' . line
+      " Store the current indent as an important one to look out for
+      let b:phpfold_closefold=add(b:phpfold_closefold, l:il)
+      " But we must only look out for it at the line with the closing */
+      let endComment = FindNextDelimiter(a:lnum, '*/') - 1
+      let b:phpfold_closefold_after=add(b:phpfold_closefold_after, endComment)
+      let b:phpfold_last += 1
+      return '>' . b:phpfold_last
     endif
 
-    return '='
+    return b:phpfold_last
+    " -------------------------------------------------------------
+
+    if b:phpfold_docblocks
+        " Cause indented multi-line comments (/* */) to be folded.
+        if line =~? '\v^\s*/\*\*' && line !~? '\*/'
+            return '>'.(IndentLevel(a:lnum)+1)
+        elseif line =~? '\v^\s*\*/@!' && IsDocBlock(a:lnum-1)
+            return IndentLevel(a:lnum)+1
+        elseif line =~? '\v^\s*\*/'
+            if b:phpfold_doc_with_funcs && getline(a:lnum+1) =~?  '\v\s*(abstract\s+|public\s+|private\s+|static\s+|private\s+)*function\s+(\k|\()'
+                return IndentLevel(a:lnum)+1
+            else
+                return '<' . (IndentLevel(a:lnum)+1)
+            endif
+        endif
+    endif
 
     if b:phpfold_use
         " Fold blocks of 'use' statements that have no indentation.
@@ -129,21 +170,6 @@ function! GetPhpFold(lnum)
         " line closes the current fold so that the else/catch/finally can open a new one.
         if getline(a:lnum+1) =~? '\v}\s*(else|catch|finally)'
             return '<' . IndentLevel(a:lnum)
-        endif
-    endif
-
-    if b:phpfold_docblocks
-        " Cause indented multi-line comments (/* */) to be folded.
-        if line =~? '\v^\s*/\*\*' && line !~? '\*/'
-            return '>'.(IndentLevel(a:lnum)+1)
-        elseif line =~? '\v^\s*\*/@!' && IsDocBlock(a:lnum-1)
-            return IndentLevel(a:lnum)+1
-        elseif line =~? '\v^\s*\*/'
-            if b:phpfold_doc_with_funcs && getline(a:lnum+1) =~?  '\v\s*(abstract\s+|public\s+|private\s+|static\s+|private\s+)*function\s+(\k|\()'
-                return IndentLevel(a:lnum)+1
-            else
-                return '<' . (IndentLevel(a:lnum)+1)
-            endif
         endif
     endif
 
