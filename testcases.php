@@ -1,4 +1,7 @@
 <?php // vim: sw=4 ts=4 et
+function thishouldold() {
+    // why not?
+}
 // Test fnPsr2
 /**
  * A function
@@ -77,6 +80,7 @@ class FooDrupal {
     }
     public function fiddle() {
         // hows this?
+        // foo
     }
     /**
      * another method

@@ -55,8 +55,10 @@ let b:phpfold_debug = 0
 function! GetPhpFold(lnum)
     let li = IndentLevel(a:lnum)
     if PhpFoldIncrease(a:lnum)
+        echom "#" . a:lnum . " starts a fold: " . getline(a:lnum)
         return '>' . (l:li+1)
     elseif PhpFoldDecrease(a:lnum, l:li)
+        echom "#" . a:lnum . " ends   a fold: " . getline(a:lnum)
         return '<' . (l:li+1)
     else
         return '='
@@ -69,7 +71,20 @@ function! PhpFoldIncrease(lnum)
     let line = getline(a:lnum)
     if l:line =~? '\v^\s*(private\s+|public\s+|protected\s+|static\s+)*(class|function)(\s|\()'
       " Start of function or class
-      return 1
+      echom "function found line #" . a:lnum
+      if b:phpfold_doc_with_funcs
+        " this does not cause a fold if there's a comment above it.
+        if getline(a:lnum - 1) =~? '\v^\s*\*\/$'
+          echom "Line above " . line . " is a comment, so this dont start a fold"
+          return 0
+        else
+          echom '...' . a:lnum . " starts fold: " . line
+          return 1
+        endif
+      else
+        echom '...hmm'
+        return 1
+      endif
     elseif b:phpfold_docblocks && l:line =~? '\v^\s*/\*\*' && l:line !~? '\*/'
       " Cause indented multi-line comments (/* */) to be folded.
       return 1
@@ -96,11 +111,15 @@ function! PhpFoldDecrease(lnum, li)
                 " pertinent.
                 return 0
             elseif l:li2 == a:li
-                if getline(l:li2) =~? '\v\s*\{'
+                if getline(l:li2) =~? '\v^\s*\{'
                     " Ignore this if it starts with {
+                    echom "ignoring line #" . l:li2
                 else
                   " Ok, this closes a fold if this level of indent opened a fold.
-                  return PhpFoldIncrease(l:current)
+                  if PhpFoldIncrease(l:current)
+                    return 1
+                  endif
+                  echom "ignoring line #" . l:li2 . " because didn't incresase"
                 endif
             endif
             " go back a bit further.
