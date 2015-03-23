@@ -75,6 +75,9 @@ class FooDrupal {
         // This is Drupal style
         return;
     }
+    public function fiddle() {
+        // hows this?
+    }
     /**
      * another method
      */

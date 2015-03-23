@@ -53,211 +53,63 @@ let b:phpfold_last = 0
 let b:phpfold_debug = 0
 
 function! GetPhpFold(lnum)
-    let line = getline(a:lnum)
-    if a:lnum == 1
-      let b:phpfold_closefold = []
-      let b:phpfold_cache = []
-      let b:phpfold_closefold_after = []
-      let b:phpfold_last = 0
+    let li = IndentLevel(a:lnum)
+    if PhpFoldIncrease(a:lnum)
+        return '>' . (l:li+1)
+    elseif PhpFoldDecrease(a:lnum, l:li)
+        return '<' . (l:li+1)
+    else
+        return '='
     endif
-
-    " If we have a full fold cache, use that.
-    if len(b:phpfold_cache) == line('$')
-      call PhpFoldDebug( "Used cache for line " . a:lnum)
-      return b:phpfold_cache[a:lnum-1]
-    endif
-
-    " Empty lines get the same fold level as the line before them.
-    " e.g. blank lines between class methods continue the class-level fold.
-    if line =~? '\v^\s*$'
-      let b:phpfold_cache = add(b:phpfold_cache, b:phpfold_last)
-      return b:phpfold_last
-    endif
-    let l:il = IndentLevel(a:lnum)
-
-    call PhpFoldDebug('line ' . a:lnum . ' Indent:' . l:il . ' closes:' . join(b:phpfold_closefold, ',') . ' closes_a:' . join(b:phpfold_closefold_after, ',') . ' string: ' . line)
-    " If this line is at a level of indentation we should look out for, close
-    " the fold.
-    if len(b:phpfold_closefold)>0
-      " We are looking out for things to close
-
-      if (a:lnum > b:phpfold_closefold_after[-1]) && (b:phpfold_closefold[-1] == l:il)
-        call PhpFoldDebug('line ' . a:lnum . ' ENDS: ' . line)
-        let b:phpfold_closefold=b:phpfold_closefold[0:-2]
-        let b:phpfold_closefold_after=b:phpfold_closefold_after[0:-2]
-        let l:thisfold = '<' .b:phpfold_last
-        if b:phpfold_last == 0
-          call PhpFoldDebug('hmmm. already at 0 but closing a fold?!')
-        else
-          let b:phpfold_last -= 1
-        endif
-        let b:phpfold_cache = add(b:phpfold_cache, l:thisfold)
-        return l:thisfold
-      endif
-    endif
-
-    " @todo: support folding docblock as part of the code.
-
-    " Does this line start a fold?
-    if line =~? '\v^\s*(private\s+|public\s+|protected\s+|static\s+)*(class|function)(\s|\()'
-      call PhpFoldDebug('line ' . a:lnum . ' STARTS: ' . line)
-      " Store the current indent as an important one to look out for
-      let b:phpfold_closefold=add(b:phpfold_closefold, l:il)
-      " But we must only look out for it after the opening curly
-      let nextCurly = FindNextDelimiter(a:lnum, '{')
-      let b:phpfold_closefold_after=add(b:phpfold_closefold_after, nextCurly)
-      let b:phpfold_last += 1
-      let b:phpfold_cache = add(b:phpfold_cache, '>' . b:phpfold_last)
-      return '>' . b:phpfold_last
-    elseif b:phpfold_docblocks && line =~? '\v^\s*/\*\*' && line !~? '\*/'
-      " Cause indented multi-line comments (/* */) to be folded.
-      call PhpFoldDebug('line ' . a:lnum . ' STARTS: ' . line)
-      " Store the current indent as an important one to look out for
-      let b:phpfold_closefold=add(b:phpfold_closefold, l:il)
-      " But we must only look out for it at the line with the closing */
-      let endComment = FindNextDelimiter(a:lnum, '*/') - 1
-      let b:phpfold_closefold_after=add(b:phpfold_closefold_after, endComment)
-      let b:phpfold_last += 1
-      let b:phpfold_cache = add(b:phpfold_cache, '>' . b:phpfold_last)
-      return '>' . b:phpfold_last
-    endif
-
-    let b:phpfold_cache = add(b:phpfold_cache, b:phpfold_last)
-    return b:phpfold_last
-    " -------------------------------------------------------------
-
-    if b:phpfold_docblocks
-        " Cause indented multi-line comments (/* */) to be folded.
-        if line =~? '\v^\s*/\*\*' && line !~? '\*/'
-            return '>'.(IndentLevel(a:lnum)+1)
-        elseif line =~? '\v^\s*\*/@!' && IsDocBlock(a:lnum-1)
-            return IndentLevel(a:lnum)+1
-        elseif line =~? '\v^\s*\*/'
-            if b:phpfold_doc_with_funcs && getline(a:lnum+1) =~?  '\v\s*(abstract\s+|public\s+|private\s+|static\s+|private\s+)*function\s+(\k|\()'
-                return IndentLevel(a:lnum)+1
-            else
-                return '<' . (IndentLevel(a:lnum)+1)
-            endif
-        endif
-    endif
-
-    if b:phpfold_use
-        " Fold blocks of 'use' statements that have no indentation.
-        " i.e. namespace imports
-        if line =~? '\v^use\s+' && getline(a:lnum+1) =~? '\v^(use\s+)@!'
-            " Stop the fold at the last use statement.
-            return '<1'
-        elseif line =~? '\v^use\s+'
-            return '1'
-        endif
-    endif
-
-    " handle class methods and independent functions
-    if line =~? '\v\s*(abstract\s+|public\s+|private\s+|static\s+|private\s+)*function\s+(\k|\()' && line !~? ';$'
-        if b:phpfold_doc_with_funcs
-            return IndentLevel(a:lnum)+1
-        else
-            return '>'.(IndentLevel(a:lnum)+1)
-        endif
-    endif
-
-    if line =~? '\vfunction\s+(\k|\().*;$'
-        return '<'.(IndentLevel(a:lnum)+1)
-    endif
-
-    if line =~? '\v^\s*class\s+\k'
-        " The code inside the class or function determines the fold level, 
-        " and it starts after the curly.  However, the curly may not always 
-        " be right after the class or function declaration, so search for it.
-        let nextCurly = FindNextDelimiter(a:lnum, '{')
-        return '>' . IndentLevel(nextnonblank(nextCurly + 1))
-    elseif line =~? '{' && line !~? '\v^\s*\*'
-        " The fold level of the curly is determined by the next non-blank line
-        return IndentLevel(a:lnum) + 1
-    elseif line =~? '\v^\s*\*@!\}(\s*(else|catch|finally))@!'
-        " The fold level the closing curly closes is determined by the previous non-blank line
-        " But only if not followed by an else, catch, or finally
-        return '<' . (IndentLevel(a:lnum)+1)
-    endif
-
-    if !b:phpfold_group_iftry
-        " If the next line is followed by an opening else, catch, or finally statement, then this 
-        " line closes the current fold so that the else/catch/finally can open a new one.
-        if getline(a:lnum+1) =~? '\v}\s*(else|catch|finally)'
-            return '<' . IndentLevel(a:lnum)
-        endif
-    endif
-
-    if b:phpfold_group_args
-        " Increase the foldlevel by 1 for function and closure arguments and use vars that are on
-        " multiple lines.
-        let prevClassFunc = FindPrevClassFunc(a:lnum)
-        if prevClassFunc > 0 && getline(a:lnum-1) =~? '\v\([^\)]*$'
-            return 'a1'
-        elseif prevClassFunc > 0 && getline(a:lnum+1) =~? '\v^\s*[^\(]*\)'
-            return 's1'
-        elseif prevClassFunc > 0
-            return '='
-        endif
-    endif
-
-    " If the line has an open ( ) or [ ] pair, it probably starts a fold
-    if line =~? '\v(\(|\[)[^\)\]]*$' 
-        if b:phpfold_group_iftry && line =~? '\v}\s*(elseif|catch)'
-            " But don't start a fold if we're grouping if/elseif/else and try/catch
-            return IndentLevel(a:lnum)+1
-        else
-            return 'a1'
-        endif
-    elseif line =~? '\v^\s*([\(\[].*)@!(\)|\])'
-        return 's1'
-    endif
-
-    " Fold switch case and default blocks together
-    if line =~? '\v^\s*default:'
-        return '>' . (IndentLevel(a:lnum)+1)
-    elseif line =~? '\v^\s*case\s*.*:'
-        if  getline(a:lnum-1) !~? '\v^\s*case\s*.*:' 
-            return '>' .(IndentLevel(a:lnum)+1)
-        else
-            return IndentLevel(a:lnum)+1
-        endif
-    endif
-
-    if b:phpfold_heredocs
-        " Fold the here and now docs
-        if line =~? "<<<[a-zA-Z_][a-zA-Z0-9_]*$"
-            return '>'.(IndentLevel(a:lnum)+1)
-        elseif line =~? "<<<'[a-zA-Z_][a-zA-Z0-9_]*'$"
-            return '>'.(IndentLevel(a:lnum)+1)
-        elseif line =~? "^[a-zA-Z_][a-zA-Z0-9_]*;$"
-            " heredocs and now docs end the same way, so we have to check for both starts and see which 
-            " appeared latest in the file.  We then assume that one opened the fold.
-            let heredoc = FindPrevDelimiter(a:lnum-1, '<<<'.strpart(line, 0, strlen(line)-1))
-            let nowdoc = FindPrevDelimiter(a:lnum-1, "<<<'".strpart(line, 0, strlen(line)-1)."'")
-            let startLine = -1
-            if heredoc > nowdoc
-                let startLine = heredoc
-            elseif nowdoc > heredoc
-                let startLine = nowdoc
-            endif
-            if startLine >= 0
-                return '<'.(IndentLevel(startLine)+1)
-            endif
-        endif
-    endif
-
-    if getline(a:lnum+1) =~? '\v^\s*}' && (IndentLevel(a:lnum)-IndentLevel(a:lnum+1)) > 1
-       return '<' . IndentLevel(a:lnum)
-   endif
-
-    return '='
 endfunction
 
-function! PhpFoldDebug(a)
-  if b:phpfold_debug
-    echom l:a
-  endif
+function! PhpFoldIncrease(lnum)
+    " Does this line start a fold?
+
+    let line = getline(a:lnum)
+    if l:line =~? '\v^\s*(private\s+|public\s+|protected\s+|static\s+)*(class|function)(\s|\()'
+      " Start of function or class
+      return 1
+    elseif b:phpfold_docblocks && l:line =~? '\v^\s*/\*\*' && l:line !~? '\*/'
+      " Cause indented multi-line comments (/* */) to be folded.
+      return 1
+    else
+      "anything else
+      return 0
+    endif
+endfunction
+
+function! PhpFoldDecrease(lnum, li)
+    " Does this line start a fold?
+    let line = getline(a:lnum)
+
+    if l:line =~? '\v\}'
+        echom "Line #" . a:lnum . " (indent " . a:li . ") " . line
+        " End curly
+        " scan back up
+        let current = a:lnum - 1
+        while l:current > 1
+            let li2 = IndentLevel(l:current)
+            echom "Scanning up: " . l:current . " has indent " . l:li2 . " cf " . a:li . " #" . a:lnum . " ". getline(l:li2)
+            if l:li2 < a:li
+                " Oh, there's a line with less indentation. So this one wasn't
+                " pertinent.
+                return 0
+            elseif l:li2 == a:li
+                if getline(l:li2) =~? '\v\s*\{'
+                    " Ignore this if it starts with {
+                else
+                  " Ok, this closes a fold if this level of indent opened a fold.
+                  return PhpFoldIncrease(l:current)
+                endif
+            endif
+            " go back a bit further.
+            let current -= 1
+        endwhile
+    endif
+
+    " this closing thing is not important.
+    return 0
 endfunction
 
 function! IndentLevel(lnum)
