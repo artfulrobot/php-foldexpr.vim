@@ -55,10 +55,10 @@ let b:phpfold_debug = 0
 function! GetPhpFold(lnum)
     let li = IndentLevel(a:lnum)
     if PhpFoldIncrease(a:lnum)
-        echom "#" . a:lnum . " starts a fold: " . getline(a:lnum)
+        "echom "#" . a:lnum . " starts a fold: " . getline(a:lnum)
         return '>' . (l:li+1)
     elseif PhpFoldDecrease(a:lnum, l:li)
-        echom "#" . a:lnum . " ends   a fold: " . getline(a:lnum)
+        "echom "#" . a:lnum . " ends   a fold: " . getline(a:lnum)
         return '<' . (l:li+1)
     else
         return '='
@@ -71,18 +71,18 @@ function! PhpFoldIncrease(lnum)
     let line = getline(a:lnum)
     if l:line =~? '\v^\s*(private\s+|public\s+|protected\s+|static\s+)*(class|function)(\s|\()'
       " Start of function or class
-      echom "function found line #" . a:lnum
+      "echom "function found line #" . a:lnum
       if b:phpfold_doc_with_funcs
         " this does not cause a fold if there's a comment above it.
         if getline(a:lnum - 1) =~? '\v^\s*\*\/$'
-          echom "Line above " . line . " is a comment, so this dont start a fold"
+          "echom "Line above " . line . " is a comment, so this dont start a fold"
           return 0
         else
-          echom '...' . a:lnum . " starts fold: " . line
+          "echom '...' . a:lnum . " starts fold: " . line
           return 1
         endif
       else
-        echom '...hmm'
+        "echom '...hmm'
         return 1
       endif
     elseif b:phpfold_docblocks && l:line =~? '\v^\s*/\*\*' && l:line !~? '\*/'
@@ -99,13 +99,13 @@ function! PhpFoldDecrease(lnum, li)
     let line = getline(a:lnum)
 
     if l:line =~? '\v\}'
-        echom "Line #" . a:lnum . " (indent " . a:li . ") " . line
+        "echom "Line #" . a:lnum . " (indent " . a:li . ") " . line
         " End curly
         " scan back up
         let current = a:lnum - 1
         while l:current > 1
             let li2 = IndentLevel(l:current)
-            echom "Scanning up: " . l:current . " has indent " . l:li2 . " cf " . a:li . " #" . a:lnum . " ". getline(l:li2)
+            "echom "Scanning up: " . l:current . " has indent " . l:li2 . " cf " . a:li . " #" . a:lnum . " ". getline(l:li2)
             if l:li2 < a:li
                 " Oh, there's a line with less indentation. So this one wasn't
                 " pertinent.
@@ -113,13 +113,13 @@ function! PhpFoldDecrease(lnum, li)
             elseif l:li2 == a:li
                 if getline(l:li2) =~? '\v^\s*\{'
                     " Ignore this if it starts with {
-                    echom "ignoring line #" . l:li2
+                    "echom "ignoring line #" . l:li2
                 else
                   " Ok, this closes a fold if this level of indent opened a fold.
                   if PhpFoldIncrease(l:current)
                     return 1
                   endif
-                  echom "ignoring line #" . l:li2 . " because didn't incresase"
+                  "echom "ignoring line #" . l:li2 . " because didn't incresase"
                 endif
             endif
             " go back a bit further.
