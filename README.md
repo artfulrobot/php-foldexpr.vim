@@ -1,3 +1,13 @@
+About this repo/branch
+======================
+
+The master branch is a complete rewrite, based on creating a faster but far
+less clever foldexpr.
+
+It's not expected that this would become a pull request any time soon. I would
+have worked in a separate branch, except for my own workflow (using Vundle)
+
+
 php-foldexpr.vim
 ============
 
